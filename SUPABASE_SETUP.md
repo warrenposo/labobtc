@@ -5,7 +5,7 @@
 ### Step 1: Run SQL Schema
 
 1. Go to your Supabase dashboard: https://supabase.com/dashboard
-2. Select your project: `tuuhmtdvqehwkrpbzxhl`
+2. Select your project: `cqrdcbfbypdytfkwahwe`
 3. Navigate to **SQL Editor** in the left sidebar
 4. Open the `database-schema.sql` file from this project
 5. Copy and paste the entire SQL code into the SQL Editor
@@ -72,8 +72,8 @@ The database trigger will automatically assign the `admin` role to this email ad
 ## Environment
 
 The Supabase configuration is already set up in `src/lib/supabase.ts`:
-- **URL**: `https://tuuhmtdvqehwkrpbzxhl.supabase.co`
-- **API Key**: Already configured
+- **URL**: `https://cqrdcbfbypdytfkwahwe.supabase.co`
+- **API Key**: `sb_publishable_ll0h0EBUjPqeKAB1bgwz7Q_3kMpN64Z`
 
 ## Testing
 
