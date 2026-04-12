@@ -25,6 +25,7 @@ import {
   Settings,
   Shield,
   Users,
+  Wallet,
   X,
   Zap,
   Headphones,
@@ -35,6 +36,7 @@ import { Switch } from '@/components/ui/switch';
 import { toast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { useMemo } from 'react';
+import { depositAddressQrUrl } from '@/lib/depositQr';
 import {
   Dialog,
   DialogContent,
@@ -79,13 +81,37 @@ interface SupportTicket {
   updated_at: string;
 }
 
+interface DepositAddressRow {
+  id: string;
+  gateway: string;
+  address: string;
+  qr_code_url: string | null;
+  is_active: boolean;
+  min_amount: number | null;
+  max_amount: number | null;
+}
+
+const GATEWAY_LABELS: Record<string, string> = {
+  btc: 'Bitcoin (BTC)',
+  'usdt-trc20': 'USDT (TRC20)',
+  'usdt-erc20': 'USDT (ERC20)',
+  usdc: 'USDC',
+  eth: 'Ethereum (ETH)',
+  solana: 'Solana (SOL)',
+  coinbase: 'Coinbase',
+  paypal: 'PayPal',
+  stripe: 'Stripe',
+};
+
 const AdminDashboard = () => {
   const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
   const [users, setUsers] = useState<User[]>([]);
   const [allStats, setAllStats] = useState<MiningStats[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeView, setActiveView] = useState<'overview' | 'users' | 'analytics' | 'settings' | 'support'>('overview');
+  const [activeView, setActiveView] = useState<
+    'overview' | 'users' | 'analytics' | 'deposit-addresses' | 'settings' | 'support'
+  >('overview');
   const [allTickets, setAllTickets] = useState<SupportTicket[]>([]);
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
   const [adminResponse, setAdminResponse] = useState('');
@@ -99,6 +125,10 @@ const AdminDashboard = () => {
   const [referralEditUser, setReferralEditUser] = useState<User | null>(null);
   const [referralEditValue, setReferralEditValue] = useState('');
   const [referralEditSaving, setReferralEditSaving] = useState(false);
+  const [depositAddressRows, setDepositAddressRows] = useState<DepositAddressRow[]>([]);
+  const [depositAddressDrafts, setDepositAddressDrafts] = useState<Record<string, string>>({});
+  const [depositActiveDrafts, setDepositActiveDrafts] = useState<Record<string, boolean>>({});
+  const [savingDepositId, setSavingDepositId] = useState<string | null>(null);
 
   useEffect(() => {
     if (profile?.role !== 'admin') {
@@ -149,6 +179,23 @@ const AdminDashboard = () => {
       } else {
         setAllStats([]);
       }
+
+      const { data: addrRows, error: addrErr } = await supabase
+        .from('deposit_addresses')
+        .select('id, gateway, address, qr_code_url, is_active, min_amount, max_amount')
+        .order('gateway');
+      if (addrErr) {
+        console.error('deposit_addresses fetch:', addrErr);
+        setDepositAddressRows([]);
+        setDepositAddressDrafts({});
+        setDepositActiveDrafts({});
+      } else {
+        const rows = (addrRows || []) as DepositAddressRow[];
+        setDepositAddressRows(rows);
+        setDepositAddressDrafts(Object.fromEntries(rows.map((d) => [d.id, d.address ?? ''])));
+        setDepositActiveDrafts(Object.fromEntries(rows.map((d) => [d.id, d.is_active !== false])));
+      }
+
       setLoading(false);
     } catch (error: any) {
       console.error('Error in AdminDashboard fetchData:', error);
@@ -357,6 +404,50 @@ const AdminDashboard = () => {
     navigate('/');
   };
 
+  const handleSaveDepositAddress = async (row: DepositAddressRow) => {
+    const address = (depositAddressDrafts[row.id] ?? '').trim();
+    if (!address) {
+      toast({
+        title: 'Address required',
+        description: 'Enter a wallet address before saving.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    const isActive = depositActiveDrafts[row.id] !== false;
+    const qr_code_url = depositAddressQrUrl(address);
+    setSavingDepositId(row.id);
+    try {
+      const { error } = await supabase
+        .from('deposit_addresses')
+        .update({
+          address,
+          qr_code_url,
+          is_active: isActive,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', row.id);
+      if (error) throw error;
+      setDepositAddressRows((prev) =>
+        prev.map((r) =>
+          r.id === row.id ? { ...r, address, qr_code_url, is_active: isActive } : r,
+        ),
+      );
+      toast({
+        title: 'Saved',
+        description: `${GATEWAY_LABELS[row.gateway] || row.gateway}: address and QR code updated. Users see this on Deposit and Plan payment.`,
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Error',
+        description: err?.message || 'Failed to update deposit address',
+        variant: 'destructive',
+      });
+    } finally {
+      setSavingDepositId(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#050C1A] text-white">
@@ -422,6 +513,17 @@ const AdminDashboard = () => {
               }`}
             >
               <BarChart3 className="h-4 w-4" /> Analytics
+            </button>
+            <button
+              onClick={() => {
+                setActiveView('deposit-addresses');
+                setMobileMenuOpen(false);
+              }}
+              className={`flex items-center gap-2 transition-colors py-2 lg:py-0 ${
+                activeView === 'deposit-addresses' ? 'text-yellow-400' : 'text-white/70 hover:text-white'
+              }`}
+            >
+              <Wallet className="h-4 w-4" /> Deposit addresses
             </button>
             <button 
               onClick={() => {
@@ -554,6 +656,90 @@ const AdminDashboard = () => {
             </div>
           )}
 
+          {/* Deposit addresses — shown to users on Deposit & plan checkout */}
+          {activeView === 'deposit-addresses' && (
+            <div className="space-y-6">
+              <div>
+                <h1 className="text-2xl font-semibold text-white">Deposit addresses</h1>
+                <p className="mt-1 text-white/60">
+                  Update wallet addresses for each payment method. Saving generates a QR code for that address; users see the same address and a scannable QR on the Deposit and Start Mining payment steps.
+                </p>
+              </div>
+              {depositAddressRows.length === 0 ? (
+                <Card className="border-white/5 bg-[#0B152F]">
+                  <CardContent className="py-10 text-center text-white/50">
+                    No deposit address rows found. Run your database schema seed for <code className="text-yellow-400/80">deposit_addresses</code>.
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-1 xl:grid-cols-2">
+                  {depositAddressRows.map((row) => {
+                    const draft = depositAddressDrafts[row.id] ?? row.address ?? '';
+                    const previewQr = depositAddressQrUrl(draft);
+                    const label = GATEWAY_LABELS[row.gateway] || row.gateway;
+                    return (
+                      <Card key={row.id} className="border-white/5 bg-[#0B152F]">
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-lg text-white">{label}</CardTitle>
+                          <CardDescription className="text-white/50 font-mono text-xs">{row.gateway}</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+                            {previewQr ? (
+                              <div className="shrink-0 mx-auto sm:mx-0">
+                                <img
+                                  src={previewQr}
+                                  alt={`QR for ${label}`}
+                                  className="h-36 w-36 rounded-lg border border-white/10 bg-white p-2 object-contain"
+                                />
+                                <p className="mt-1 text-center text-[10px] text-white/40">Preview</p>
+                              </div>
+                            ) : (
+                              <div className="flex h-36 w-36 shrink-0 items-center justify-center rounded-lg border border-dashed border-white/20 bg-white/5 text-xs text-white/40 mx-auto sm:mx-0">
+                                Enter address
+                              </div>
+                            )}
+                            <div className="min-w-0 flex-1 space-y-3">
+                              <div className="grid gap-2">
+                                <Label className="text-white/80">Wallet address</Label>
+                                <Input
+                                  value={draft}
+                                  onChange={(e) =>
+                                    setDepositAddressDrafts((prev) => ({ ...prev, [row.id]: e.target.value }))
+                                  }
+                                  className="font-mono text-sm bg-[#0F1F3F] border-white/10 text-white"
+                                  placeholder="Paste receive address"
+                                />
+                              </div>
+                              <div className="flex items-center justify-between gap-4 rounded-lg border border-white/10 bg-[#0F1F3F]/50 px-3 py-2">
+                                <Label htmlFor={`active-${row.id}`} className="text-white/80 cursor-pointer">
+                                  Active (shown to users)
+                                </Label>
+                                <Switch
+                                  id={`active-${row.id}`}
+                                  checked={depositActiveDrafts[row.id] !== false}
+                                  onCheckedChange={(checked) =>
+                                    setDepositActiveDrafts((prev) => ({ ...prev, [row.id]: checked }))
+                                  }
+                                />
+                              </div>
+                              <Button
+                                className="w-full bg-yellow-500 text-black hover:bg-yellow-400 sm:w-auto"
+                                disabled={savingDepositId === row.id}
+                                onClick={() => handleSaveDepositAddress(row)}
+                              >
+                                {savingDepositId === row.id ? 'Saving…' : 'Save address & QR'}
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Support Tickets View */}
           {activeView === 'support' && (

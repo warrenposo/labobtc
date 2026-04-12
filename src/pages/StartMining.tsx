@@ -30,11 +30,7 @@ import {
 import { toast } from '@/hooks/use-toast';
 import { UserSidebar } from '@/components/UserSidebar';
 import { WHATSAPP_LINK } from '@/constants/contact';
-import btcQR from '@/assets/btc33.jpeg';
-import erc20QR from '@/assets/eth11.jpeg';
-import ethQR from '@/assets/eth11.jpeg';
-import trc20QR from '@/assets/trc22.jfif';
-import solanaQR from '@/assets/solana.jpeg';
+import { depositAddressQrUrl } from '@/lib/depositQr';
 
 interface MiningPlan {
   id: string;
@@ -1376,22 +1372,17 @@ const StartMining = () => {
                       <div className="mt-6 flex flex-col items-center gap-4">
                         <div>
                           {(() => {
-                            const gateway = activePurchase.gateway as GatewayValue;
-                            const qrCodeMap: Record<GatewayValue, string> = {
-                              btc: btcQR,
-                              'usdt-trc20': trc20QR,
-                              'usdt-erc20': erc20QR,
-                              usdc: erc20QR, // USDC uses ERC20 network
-                              eth: ethQR,
-                              solana: solanaQR,
-                            };
-
-                            return (
+                            const payQr = depositAddressQrUrl(activePurchase.deposit_address);
+                            return payQr ? (
                               <img
-                                src={qrCodeMap[gateway] || btcQR}
-                                alt="Payment QR"
-                                className="h-48 w-48 object-contain"
+                                src={payQr}
+                                alt="Scan to pay"
+                                className="h-48 w-48 rounded-lg border border-white/10 bg-white p-2 object-contain"
                               />
+                            ) : (
+                              <div className="flex h-48 w-48 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-sm text-white/50">
+                                No address
+                              </div>
                             );
                           })()}
                         </div>
