@@ -81,7 +81,8 @@ export function MiningProvider({ children }: { children: React.ReactNode }) {
 
   // Keep current user in sync for session ownership; clear session when user logs out
   useEffect(() => {
-    supabase.auth.onAuthStateChange((_e, { user }) => {
+    supabase.auth.onAuthStateChange((_e, session) => {
+      const user = session?.user ?? null;
       setCurrentUserId(user?.id ?? null);
       const stored = loadStoredSession();
       if (!user) {
