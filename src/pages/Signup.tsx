@@ -30,26 +30,18 @@ const SignUp = () => {
   const [error, setError] = useState<string | null>(null);
 
   // Handle automatic redirects after successful sign up
+  // Wait for authLoading=false so profile (and thus isAdmin) is fully known
   useEffect(() => {
     if (authLoading) return;
 
     if (user && !redirectedRef.current) {
       redirectedRef.current = true;
       setIsLoading(false);
-
-      const timer = setTimeout(() => {
-        if (profile) {
-          navigate(isAdmin ? '/admin' : '/dashboard', { replace: true });
-        } else {
-          navigate('/dashboard', { replace: true });
-        }
-      }, 100);
-
-      return () => clearTimeout(timer);
-    } else if (!user && !authLoading && redirectedRef.current) {
+      navigate(isAdmin ? '/admin' : '/dashboard', { replace: true });
+    } else if (!user && !authLoading) {
       redirectedRef.current = false;
     }
-  }, [user, profile, isAdmin, authLoading, navigate]);
+  }, [user, isAdmin, authLoading, navigate]);
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -124,10 +116,7 @@ const SignUp = () => {
         updateProfile().catch(console.error);
       }
 
-      // Direct redirect as backup
-      setTimeout(() => {
-        navigate('/dashboard', { replace: true });
-      }, 200);
+      // useEffect handles redirect once profile is loaded
 
     } catch (error: any) {
       console.error('Sign up error:', error);
@@ -141,6 +130,13 @@ const SignUp = () => {
           errorMessage = 'Password must be at least 6 characters long.';
         } else if (error.message.includes('Invalid email')) {
           errorMessage = 'Please enter a valid email address.';
+        } else if (
+          error.message.toLowerCase().includes('email rate limit') ||
+          error.message.toLowerCase().includes('rate limit') ||
+          error.message.toLowerCase().includes('over_email_send_rate_limit')
+        ) {
+          errorMessage =
+            'Too many sign-up attempts. Please wait a few minutes and try again, or ask the admin to disable email confirmation in Supabase settings.';
         } else {
           errorMessage = error.message;
         }

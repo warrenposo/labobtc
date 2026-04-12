@@ -236,9 +236,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       });
 
       if (error) {
-        console.error('[AuthContext] Sign up error:', error.message);
-        setLoading(false);
-        throw error;
+        // Email rate limit means Supabase still created the user but couldn't send the email.
+        // Treat it as a soft error — try to fetch profile and let the user proceed.
+        const isRateLimit =
+          error.message?.toLowerCase().includes('rate limit') ||
+          error.message?.toLowerCase().includes('over_email_send_rate_limit');
+
+        if (!isRateLimit) {
+          console.error('[AuthContext] Sign up error:', error.message);
+          setLoading(false);
+          throw error;
+        }
+        console.warn('[AuthContext] Email rate limit hit during signup — continuing anyway:', error.message);
       }
 
       if (data.user) {
