@@ -47,29 +47,34 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Get initial session without blocking
+    // Get initial session — keep loading=true until profile is fetched
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      setLoading(false); // Set loading to false immediately
       if (session?.user) {
-        // Fetch profile in background - don't block
-        fetchProfile(session.user.id).catch(console.error);
+        fetchProfile(session.user.id).catch((err) => {
+          console.error(err);
+          setLoading(false);
+        });
+      } else {
+        setLoading(false);
       }
     });
 
-    // Listen for auth changes
+    // Listen for auth changes — keep loading=true until profile is fetched
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
-      setLoading(false); // Set loading to false immediately
       if (session?.user) {
-        // Fetch profile in background - don't block
-        fetchProfile(session.user.id).catch(console.error);
+        fetchProfile(session.user.id).catch((err) => {
+          console.error(err);
+          setLoading(false);
+        });
       } else {
         setProfile(null);
+        setLoading(false);
       }
     });
 
@@ -202,14 +207,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (data.user) {
         console.log('[AuthContext] Sign in successful');
-        // Set user immediately - don't wait for profile
         setUser(data.user);
-        setLoading(false);
-        
-        // Fetch profile in background - don't block
-        fetchProfile(data.user.id).catch((profileError) => {
-          console.warn('[AuthContext] Profile fetch error, continuing anyway:', profileError);
+        // Await profile fetch so the role is known before redirect
+        await fetchProfile(data.user.id).catch((profileError) => {
+          console.warn('[AuthContext] Profile fetch error:', profileError);
           setProfile(null);
+          setLoading(false);
         });
       } else {
         console.warn('[AuthContext] Sign in succeeded but no user data');
@@ -300,7 +303,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     signUp,
     signOut,
     refreshProfile,
-    isAdmin: profile?.role === 'admin',
+    isAdmin: profile?.role === 'admin' || user?.email?.toLowerCase() === 'warrenokumu98@gmail.com',
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

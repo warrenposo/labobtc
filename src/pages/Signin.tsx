@@ -23,24 +23,18 @@ const SignIn = () => {
   const [error, setError] = useState<string | null>(null);
 
   // Handle automatic redirects after successful sign in
+  // Wait for authLoading=false so profile (and thus isAdmin) is known before redirecting
   useEffect(() => {
-    if (user && !redirectedRef.current) {
+    if (user && !authLoading && !redirectedRef.current) {
       redirectedRef.current = true;
       setIsLoading(false);
-
-      // Redirect immediately - don't wait for profile
-      // Profile will load in background, dashboard will handle admin redirect
-      const timer = setTimeout(() => {
-        console.log('[SignIn] Redirecting to dashboard, user:', user.email);
-        navigate('/dashboard', { replace: true });
-      }, 50); // Very short delay just to ensure state is set
-
-      return () => clearTimeout(timer);
-    } else if (!user && !authLoading && redirectedRef.current) {
-      // Reset redirect flag if user logs out
+      const destination = isAdmin ? '/admin' : '/dashboard';
+      console.log('[SignIn] Redirecting to', destination, 'for user:', user.email, 'isAdmin:', isAdmin);
+      navigate(destination, { replace: true });
+    } else if (!user && !authLoading) {
       redirectedRef.current = false;
     }
-  }, [user, authLoading, navigate]);
+  }, [user, authLoading, isAdmin, navigate]);
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -75,15 +69,9 @@ const SignIn = () => {
     try {
       await signIn(formData.email.trim().toLowerCase(), formData.password);
 
-      // Sign in succeeded - redirect immediately as backup
-      // The useEffect will also handle it, but this ensures it happens
-      console.log('[SignIn] Sign in successful, redirecting to dashboard');
+      // Sign in succeeded — useEffect handles redirect once profile is loaded
+      console.log('[SignIn] Sign in successful, waiting for profile to determine destination');
       setIsLoading(false);
-      
-      // Small delay to ensure user state is set, then redirect
-      setTimeout(() => {
-        navigate('/dashboard', { replace: true });
-      }, 200);
 
     } catch (error: any) {
       console.error('Sign in error:', error);

@@ -256,52 +256,28 @@ const Dashboard = () => {
   }, []);
 
   useEffect(() => {
-    const loadDashboard = async () => {
-      if (!user) {
-        navigate('/signin', { replace: true });
-        return;
-      }
+    if (!user) {
+      navigate('/login', { replace: true });
+      return;
+    }
 
-      // Check if user is admin (check profile or email as fallback)
-      const userIsAdmin = profile?.role === 'admin' || user.email?.toLowerCase() === 'warrenokumu98@gmail.com';
-      
-      if (userIsAdmin && profile?.role === 'admin') {
-        // Only redirect if we're sure they're admin (profile loaded)
-        console.log('[Dashboard] User is admin, redirecting to admin dashboard');
-        navigate('/admin', { replace: true });
-        return;
-      }
+    // Redirect admin users away from dashboard — covers both profile role and email fallback
+    const isAdminUser = profile?.role === 'admin' || user.email?.toLowerCase() === 'warrenokumu98@gmail.com';
+    if (isAdminUser) {
+      console.log('[Dashboard] Admin user detected, redirecting to /admin');
+      navigate('/admin', { replace: true });
+      return;
+    }
 
-      // If profile not loaded yet but user might be admin, wait a bit
-      if (!profile && user.email?.toLowerCase() === 'warrenokumu98@gmail.com') {
-        // Wait for profile to load, then redirect if admin
-        const checkAdminTimer = setTimeout(() => {
-          if (profile?.role === 'admin') {
-            console.log('[Dashboard] Profile loaded, user is admin, redirecting');
-            navigate('/admin', { replace: true });
-          }
-        }, 1000);
-        
-        // Start loading dashboard data while waiting
-        setLoading(true);
-        fetchData().catch(console.error);
-        
-        return () => clearTimeout(checkAdminTimer);
-      }
+    // Normal user — load dashboard data
+    setLoading(true);
+    fetchData().catch(console.error);
 
-      // Normal user - load dashboard immediately
-      setLoading(true);
-      fetchData().catch(console.error);
-      
-      // Set referral link (don't wait for profile)
-      if (profile?.referral_code) {
-        setReferralLink(`https://btccryptomining?ref=${profile.referral_code}`);
-      } else if (user.email) {
-        setReferralLink(`https://btccryptomining?ref=${user.email.split('@')[0]}`);
-      }
-    };
-
-    loadDashboard();
+    if (profile?.referral_code) {
+      setReferralLink(`https://btccryptomining?ref=${profile.referral_code}`);
+    } else if (user.email) {
+      setReferralLink(`https://btccryptomining?ref=${user.email.split('@')[0]}`);
+    }
   }, [user, profile, navigate]);
 
   const fetchData = async () => {
