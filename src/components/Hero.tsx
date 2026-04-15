@@ -1,21 +1,78 @@
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Bitcoin, Cloud, TrendingUp, ArrowRight, ChevronDown } from "lucide-react";
 import { Link } from "react-router-dom";
 
-const tickerItems = [
-  { symbol: "BTC", price: "$94,210.50", change: "+2.34%" },
-  { symbol: "ETH", price: "$3,821.10", change: "+1.87%" },
-  { symbol: "BNB", price: "$612.30", change: "+0.95%" },
-  { symbol: "SOL", price: "$188.40", change: "+3.12%" },
-  { symbol: "ADA", price: "$0.612", change: "-0.43%" },
-  { symbol: "BTC", price: "$94,210.50", change: "+2.34%" },
-  { symbol: "ETH", price: "$3,821.10", change: "+1.87%" },
-  { symbol: "BNB", price: "$612.30", change: "+0.95%" },
-  { symbol: "SOL", price: "$188.40", change: "+3.12%" },
-  { symbol: "ADA", price: "$0.612", change: "-0.43%" },
+const CG_TICKER_IDS = [
+  { id: "bitcoin", symbol: "BTC" },
+  { id: "ethereum", symbol: "ETH" },
+  { id: "binancecoin", symbol: "BNB" },
+  { id: "solana", symbol: "SOL" },
+  { id: "cardano", symbol: "ADA" },
+] as const;
+
+const FALLBACK_TICKER: { symbol: string; price: string; change: string }[] = [
+  { symbol: "BTC", price: "—", change: "—" },
+  { symbol: "ETH", price: "—", change: "—" },
+  { symbol: "BNB", price: "—", change: "—" },
+  { symbol: "SOL", price: "—", change: "—" },
+  { symbol: "ADA", price: "—", change: "—" },
+  { symbol: "BTC", price: "—", change: "—" },
+  { symbol: "ETH", price: "—", change: "—" },
+  { symbol: "BNB", price: "—", change: "—" },
+  { symbol: "SOL", price: "—", change: "—" },
+  { symbol: "ADA", price: "—", change: "—" },
 ];
 
+function formatUsdPrice(n: number): string {
+  if (!Number.isFinite(n)) return "—";
+  if (n >= 1000) {
+    return `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+  if (n >= 1) {
+    return `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+  return `$${n.toFixed(4)}`;
+}
+
 export const Hero = () => {
+  const [tickerItems, setTickerItems] = useState(FALLBACK_TICKER);
+
+  const fetchTicker = useCallback(async () => {
+    try {
+      const url =
+        "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,binancecoin,solana,cardano&vs_currencies=usd&include_24hr_change=true";
+      const res = await fetch(url);
+      if (!res.ok) return;
+      const data = (await res.json()) as Record<
+        string,
+        { usd?: number; usd_24h_change?: number | null }
+      >;
+      const row = (id: string) => data[id];
+      const built = CG_TICKER_IDS.map(({ id, symbol }) => {
+        const d = row(id);
+        if (!d || typeof d.usd !== "number") return { symbol, price: "—", change: "—" };
+        const ch = d.usd_24h_change;
+        const pct = typeof ch === "number" && Number.isFinite(ch) ? ch : 0;
+        const sign = pct >= 0 ? "+" : "";
+        return {
+          symbol,
+          price: formatUsdPrice(d.usd),
+          change: `${sign}${pct.toFixed(2)}%`,
+        };
+      });
+      setTickerItems([...built, ...built]);
+    } catch {
+      /* keep last successful values */
+    }
+  }, []);
+
+  useEffect(() => {
+    void fetchTicker();
+    const id = window.setInterval(() => void fetchTicker(), 60_000);
+    return () => window.clearInterval(id);
+  }, [fetchTicker]);
+
   return (
     <section className="relative min-h-screen flex flex-col overflow-hidden bg-[#050c18]">
       {/* Grid background */}
@@ -45,7 +102,15 @@ export const Hero = () => {
               <Bitcoin className="w-3.5 h-3.5 text-yellow-400" />
               <span className="text-white/80 font-semibold">{item.symbol}</span>
               <span className="text-white/60">{item.price}</span>
-              <span className={item.change.startsWith("+") ? "text-emerald-400" : "text-red-400"}>
+              <span
+                className={
+                  item.change === "—"
+                    ? "text-white/40"
+                    : item.change.startsWith("+")
+                      ? "text-emerald-400"
+                      : "text-red-400"
+                }
+              >
                 {item.change}
               </span>
             </span>
