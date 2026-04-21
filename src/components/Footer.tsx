@@ -37,12 +37,12 @@ export const Footer = () => {
                 <span className="text-black font-black text-base">₿</span>
               </div>
               <span className="text-xl font-black tracking-tight">
-                <span className="text-white">Btc</span>
-                <span className="text-yellow-400">CloudBase</span>
+                <span className="text-white">BtcN</span>
+                <span className="text-yellow-400">MiningBase</span>
               </span>
             </div>
             <p className="text-white/70 text-sm leading-relaxed">
-              BtcCloudBase is one of the leading cryptocurrency cloud mining platforms, offering mining capacities for every level — from newcomers to professionals. Our mission is to make earning crypto easy and accessible worldwide.
+              BtcNMiningBase is one of the leading cryptocurrency cloud mining platforms, offering mining capacities for every level — from newcomers to professionals. Our mission is to make earning crypto easy and accessible worldwide.
             </p>
           </div>
 
@@ -105,8 +105,8 @@ export const Footer = () => {
             <ul className="space-y-3">
               <li className="flex items-center gap-3">
                 <Mail className="h-5 w-5 text-yellow-400" />
-                <a href="mailto:support@btccloudbase.com" className="text-white/70 hover:text-yellow-400 transition-colors">
-                  support@btccloudbase.com
+                <a href="mailto:support@BtcNMiningBase.com" className="text-white/70 hover:text-yellow-400 transition-colors">
+                  support@BtcNMiningBase.com
                 </a>
               </li>
               <li className="flex items-center gap-3">
@@ -149,7 +149,7 @@ export const Footer = () => {
               <div className="text-yellow-400 text-2xl">⚜</div>
             </div>
             <p className="text-white/70 text-sm text-center">
-              Copyright © 2020–2026 BtcCloudBase. All Rights Reserved.
+              Copyright © 2020–2026 BtcNMiningBase. All Rights Reserved.
             </p>
           </div>
         </div>

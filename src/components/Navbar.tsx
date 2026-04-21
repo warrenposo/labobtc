@@ -49,8 +49,8 @@ export const Navbar = () => {
               <Cloud className="w-3 h-3 text-black/70 absolute -bottom-0.5 -right-0.5" />
             </div>
             <span className="text-xl font-black tracking-tight">
-              <span className="text-white">Btc</span>
-              <span className="text-gradient-gold">CloudBase</span>
+              <span className="text-white">BtcN</span>
+              <span className="text-gradient-gold">MiningBase</span>
             </span>
           </button>
           <Button
